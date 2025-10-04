@@ -1,2 +1,3 @@
 import { HTTP_STATUS_CODES } from "./status-code.constant";
-export { HTTP_STATUS_CODES };
+import { OBJECTIVE_ENUMS } from "./objective.constant";
+export { HTTP_STATUS_CODES, OBJECTIVE_ENUMS };

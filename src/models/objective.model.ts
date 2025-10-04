@@ -3,11 +3,22 @@ import mongoose, { Schema } from "mongoose";
 const objectiveSchema = new Schema(
   {
     topic: { type: String, required: true },
+    session: { type: String, required: false },
     grade: { type: String, required: true },
-    subject: { type: String, required: true },
-    title: { type: String, required: true }, // optional descriptive title
-    objectives: [{ type: String, required: true }], // store array of generated objectives
-    createdBy: { type: String, required: false }, // optional (userId/teacherId)
+    instructions: { type: String, required: false },
+    subject: { type: String, required: false },
+    title: { type: String, required: false },
+    objectives: [{ type: String, required: true }],
+    moduleType: {
+      type: String,
+      enum: Object.values(
+        require("../constants/objective.constant").OBJECTIVE_ENUMS
+      ),
+      required: false,
+    },
+    previousTopics: [{ type: String }],
+    nextTopic: { type: String },
+    createdBy: { type: String, required: false },
   },
   { timestamps: true }
 );

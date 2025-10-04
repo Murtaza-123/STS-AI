@@ -4,12 +4,23 @@ import { successResponse, errorResponse } from "../utils/response.utils";
 
 export const createObjective = async (req: Request, res: Response) => {
   try {
-    const { topic, grade, subject, title, createdBy } = req.body;
+    const {
+      topic,
+      grade,
+      createdBy,
+      title,
+      instructions,
+      subject,
+      moduleType,
+    } = req.body;
     const objective = await objectiveService.generateAndSaveObjectives(
       topic,
       grade,
+      instructions,
+      title,
       subject,
-      title
+      moduleType
+
       // createdBy
     );
 
@@ -39,8 +50,48 @@ export const getObjectiveById = async (req: Request, res: Response) => {
   }
 };
 
+// export const generateNextTopicController = async (
+//   req: Request,
+//   res: Response
+// ) => {
+//   try {
+//     const data = req.body;
+//     const result = await objectiveService.generateNextTopicAndSave(data);
+
+//     return successResponse(res, "Next topic generated successfully", result);
+//   } catch (error: any) {
+//     console.error("Objective Error:", error);
+//     return errorResponse(res, error.message || "Internal Server Error");
+//   }
+// };
+
+const getHistory = async (req: Request, res: Response) => {
+  try {
+    const { session } = req.query;
+    const result = await objectiveService.getHistory(session as string);
+
+    return successResponse(res, "History fetched successfully", result);
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Failed to fetch history");
+  }
+};
+
+const getTitle = async (req: Request, res: Response) => {
+  try {
+    const { module } = req.query;
+    const result = await objectiveService.getTitle(module as string);
+
+    return successResponse(res, "History fetched successfully", result);
+  } catch (error: any) {
+    return errorResponse(res, error.message || "Failed to fetch history");
+  }
+};
+
 export default {
   createObjective,
   getObjectives,
   getObjectiveById,
+  //generateNextTopicController,
+  getHistory,
+  getTitle,
 };
