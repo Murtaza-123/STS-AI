@@ -67,7 +67,7 @@ class ObjectiveService {
     const query: any = {};
     if (moduleType) query.moduleType = moduleType;
     // Only return the 'title' field
-    return Objective.find(query, { title: 1, _id: 0 });
+    return Objective.find(query, { title: 1, _id: 0, session: 1 });
   }
 
   async generateNextTopicAndSave(
