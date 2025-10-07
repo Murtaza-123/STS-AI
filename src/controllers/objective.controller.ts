@@ -1,6 +1,36 @@
 import { Request, Response } from "express";
 import objectiveService from "../services/objective.service";
 import { successResponse, errorResponse } from "../utils/response.utils";
+import { OBJECTIVE_ENUMS } from "../constants/objective.constant";
+
+// export const createObjective = async (req: Request, res: Response) => {
+//   try {
+//     const {
+//       topic,
+//       grade,
+//       createdBy,
+//       title,
+//       instructions,
+//       subject,
+//       moduleType,
+//     } = req.body;
+//     const objective = await objectiveService.generateAndSaveObjectives(
+//       topic,
+//       grade,
+//       instructions,
+//       title,
+//       subject,
+//       moduleType
+
+//       // createdBy
+//     );
+
+//     return successResponse(res, "Objectives generated successfully", objective);
+//   } catch (error: any) {
+//     console.error("Objective Error:", error);
+//     return errorResponse(res, error.message || "Failed to generate objectives");
+//   }
+// };
 
 export const createObjective = async (req: Request, res: Response) => {
   try {
@@ -13,21 +43,37 @@ export const createObjective = async (req: Request, res: Response) => {
       subject,
       moduleType,
     } = req.body;
+
+    // ✅ Validate required fields
+    if (!topic || !grade) {
+      return errorResponse(res, "Topic and grade are required fields", 400);
+    }
+
+    // ✅ Default to LEARNING_OBJECTIVE if not provided
+    const validModuleType =
+      moduleType && OBJECTIVE_ENUMS[moduleType as keyof typeof OBJECTIVE_ENUMS]
+        ? moduleType
+        : OBJECTIVE_ENUMS.LEARNING_OBJECTIVE;
+
+    // ✅ Generate and save
     const objective = await objectiveService.generateAndSaveObjectives(
       topic,
       grade,
       instructions,
       title,
       subject,
-      moduleType
-
+      validModuleType
       // createdBy
     );
 
     return successResponse(res, "Objectives generated successfully", objective);
   } catch (error: any) {
     console.error("Objective Error:", error);
-    return errorResponse(res, error.message || "Failed to generate objectives");
+    return errorResponse(
+      res,
+      error.message || "Failed to generate objectives",
+      500
+    );
   }
 };
 

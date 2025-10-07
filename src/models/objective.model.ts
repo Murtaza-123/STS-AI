@@ -8,7 +8,7 @@ const objectiveSchema = new Schema(
     instructions: { type: String, required: false },
     subject: { type: String, required: false },
     title: { type: String, required: false },
-    objectives: [{ type: String, required: true }],
+    data: [{ type: String, required: true }],
     moduleType: {
       type: String,
       enum: Object.values(
@@ -16,8 +16,7 @@ const objectiveSchema = new Schema(
       ),
       required: false,
     },
-    previousTopics: [{ type: String }],
-    nextTopic: { type: String },
+
     createdBy: { type: String, required: false },
   },
   { timestamps: true }

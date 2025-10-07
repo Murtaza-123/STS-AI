@@ -1,29 +1,113 @@
 import Objective from "../models/objective.model";
 import { openai } from "../config/openAI"; // assuming you have openai config setup
 import { OBJECTIVE_ENUMS } from "../constants";
+import crypto from "crypto";
 
 class ObjectiveService {
+  async basePromptForTask(moduleType: OBJECTIVE_ENUMS) {
+    switch (moduleType) {
+      case OBJECTIVE_ENUMS.LEARNING_OBJECTIVE:
+        return "Generate 3-5 measurable learning objectives in ABCD format.";
+      case OBJECTIVE_ENUMS.CONNECTION_TO_PRIOR_KNOWLEDGE:
+        return "List connections to prior knowledge and how this prepares students for future topics.";
+      case OBJECTIVE_ENUMS.PRIMARY_PRESENTATION_FORM:
+        return "Provide a clear lesson structure: introduction, general concepts, specific details, and summary.";
+      case OBJECTIVE_ENUMS.EVIDENCE_BASED_STRATEGIES:
+        return "Recommend evidence-based teaching strategies, with differentiation tips if relevant.";
+      case OBJECTIVE_ENUMS.ZOOMING:
+        return "Suggest ways to zoom in and out conceptually, connecting detailed ideas to big-picture concepts.";
+      case OBJECTIVE_ENUMS.POWER_POINT:
+        return "Suggest slide-level ideas and design suggestions for an engaging presentation.";
+      default:
+        throw new Error(`Unsupported module type: ${moduleType}`);
+    }
+  }
+
+  async baseSystemPrompt(ctx: {
+    topic: string;
+    grade: string;
+    subject?: string;
+  }) {
+    return `
+  You are TeachMate AI, a helpful assistant for teachers.
+  Always return clear, structured, and educationally sound content.
+  
+  Lesson Context:
+  - Topic: ${ctx.topic}
+  - Subject: ${ctx.subject || "Not specified"}
+  - Grade: ${ctx.grade}
+  `;
+  }
+
+  // async generateAndSaveObjectives(
+  //   topic: string,
+  //   grade: string,
+  //   instructions?: string,
+  //   title?: string,
+  //   subject?: string,
+  //   moduleType?: OBJECTIVE_ENUMS
+  //   // createdBy?: string
+  // ) {
+  //   const prompt = `
+  //   You are an AI teaching assistant.
+  //   Grade: ${grade}
+  //   Topic: ${topic}
+  //   ${instructions ? `Additional Instructions: ${instructions}` : ""}
+
+  //   Generate 2 clear and measurable learning objectives using the ABCD model.
+  //   `;
+
+  //   const { choices } = await openai.chat.completions.create({
+  //     model: "gpt-4",
+  //     messages: [{ role: "user", content: prompt }],
+  //   });
+
+  //   const objectivesArray = (choices[0].message?.content || "")
+  //     .split("\n")
+  //     .map((line) => line.trim())
+  //     .filter(Boolean);
+
+  //   const objectiveDoc = new Objective({
+  //     topic,
+  //     grade,
+  //     instructions,
+  //     title,
+  //     moduleType,
+  //     subject,
+  //     objectives: objectivesArray,
+  //     session: crypto.randomUUID(),
+
+  //     //createdBy,
+  //   });
+
+  //   await objectiveDoc.save();
+
+  //   return objectiveDoc;
+  // }
+
   async generateAndSaveObjectives(
     topic: string,
     grade: string,
     instructions?: string,
     title?: string,
     subject?: string,
-    moduleType?: OBJECTIVE_ENUMS
-    // createdBy?: string
+    moduleType: OBJECTIVE_ENUMS = OBJECTIVE_ENUMS.LEARNING_OBJECTIVE
   ) {
-    const prompt = `
-    You are an AI teaching assistant.
-    Grade: ${grade}
-    Topic: ${topic}
-    ${instructions ? `Additional Instructions: ${instructions}` : ""}
+    const systemPrompt = this.baseSystemPrompt({ topic, grade, subject });
+    const taskPrompt = this.basePromptForTask(moduleType);
 
-    Generate 2 clear and measurable learning objectives using the ABCD model.
-    `;
+    const userPrompt = `
+  ${systemPrompt}
+  ${instructions ? `Additional Instructions: ${instructions}\n` : ""}
+  ${taskPrompt}
+  `;
 
     const { choices } = await openai.chat.completions.create({
       model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: await systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
     });
 
     const objectivesArray = (choices[0].message?.content || "")
@@ -36,12 +120,10 @@ class ObjectiveService {
       grade,
       instructions,
       title,
-      moduleType,
       subject,
-      objectives: objectivesArray,
+      moduleType,
+      data: objectivesArray,
       session: crypto.randomUUID(),
-
-      //createdBy,
     });
 
     await objectiveDoc.save();
