@@ -3,67 +3,35 @@ import objectiveService from "../services/objective.service";
 import { successResponse, errorResponse } from "../utils/response.utils";
 import { OBJECTIVE_ENUMS } from "../constants/objective.constant";
 
-// export const createObjective = async (req: Request, res: Response) => {
-//   try {
-//     const {
-//       topic,
-//       grade,
-//       createdBy,
-//       title,
-//       instructions,
-//       subject,
-//       moduleType,
-//     } = req.body;
-//     const objective = await objectiveService.generateAndSaveObjectives(
-//       topic,
-//       grade,
-//       instructions,
-//       title,
-//       subject,
-//       moduleType
-
-//       // createdBy
-//     );
-
-//     return successResponse(res, "Objectives generated successfully", objective);
-//   } catch (error: any) {
-//     console.error("Objective Error:", error);
-//     return errorResponse(res, error.message || "Failed to generate objectives");
-//   }
-// };
-
 export const createObjective = async (req: Request, res: Response) => {
   try {
     const {
       topic,
       grade,
       createdBy,
-      title,
       instructions,
       subject,
       moduleType,
+      previousTopic,
+      noOfExamples,
     } = req.body;
 
-    // ✅ Validate required fields
     if (!topic || !grade) {
       return errorResponse(res, "Topic and grade are required fields", 400);
     }
-
-    // ✅ Default to LEARNING_OBJECTIVE if not provided
     const validModuleType =
       moduleType && OBJECTIVE_ENUMS[moduleType as keyof typeof OBJECTIVE_ENUMS]
         ? moduleType
         : OBJECTIVE_ENUMS.LEARNING_OBJECTIVE;
 
-    // ✅ Generate and save
     const objective = await objectiveService.generateAndSaveObjectives(
       topic,
       grade,
       instructions,
-      title,
       subject,
-      validModuleType
-      // createdBy
+      moduleType,
+      previousTopic,
+      noOfExamples
     );
 
     return successResponse(res, "Objectives generated successfully", objective);
@@ -96,25 +64,11 @@ export const getObjectiveById = async (req: Request, res: Response) => {
   }
 };
 
-// export const generateNextTopicController = async (
-//   req: Request,
-//   res: Response
-// ) => {
-//   try {
-//     const data = req.body;
-//     const result = await objectiveService.generateNextTopicAndSave(data);
-
-//     return successResponse(res, "Next topic generated successfully", result);
-//   } catch (error: any) {
-//     console.error("Objective Error:", error);
-//     return errorResponse(res, error.message || "Internal Server Error");
-//   }
-// };
-
 const getHistory = async (req: Request, res: Response) => {
   try {
-    const { session } = req.query;
-    const result = await objectiveService.getHistory(session as string);
+    const { id } = req.query;
+    console.log(id, "id");
+    const result = await objectiveService.getHistory(id as string);
 
     return successResponse(res, "History fetched successfully", result);
   } catch (error: any) {
@@ -137,7 +91,6 @@ export default {
   createObjective,
   getObjectives,
   getObjectiveById,
-  //generateNextTopicController,
   getHistory,
   getTitle,
 };

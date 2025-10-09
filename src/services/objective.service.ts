@@ -1,5 +1,5 @@
 import Objective from "../models/objective.model";
-import { openai } from "../config/openAI"; // assuming you have openai config setup
+import { openai } from "../config/openAI";
 import { OBJECTIVE_ENUMS } from "../constants";
 import crypto from "crypto";
 
@@ -39,81 +39,160 @@ class ObjectiveService {
   `;
   }
 
-  // async generateAndSaveObjectives(
-  //   topic: string,
-  //   grade: string,
-  //   instructions?: string,
-  //   title?: string,
-  //   subject?: string,
-  //   moduleType?: OBJECTIVE_ENUMS
-  //   // createdBy?: string
-  // ) {
-  //   const prompt = `
-  //   You are an AI teaching assistant.
-  //   Grade: ${grade}
-  //   Topic: ${topic}
-  //   ${instructions ? `Additional Instructions: ${instructions}` : ""}
+  buildPrompt(payload: any) {
+    const {
+      topic,
+      grade,
+      subject,
+      moduleType,
+      instructions,
+      previousTopic,
+      noOfExamples,
+    } = payload;
 
-  //   Generate 2 clear and measurable learning objectives using the ABCD model.
-  //   `;
+    switch (moduleType) {
+      case OBJECTIVE_ENUMS.LEARNING_OBJECTIVE:
+        return `
+  Generate 3–5 measurable learning objectives for the topic "${topic}" for grade "${grade}" students in "${subject}".
+  ${instructions ? `Follow these additional instructions: ${instructions}` : ""}
+  Use clear, student-friendly language.
+  Return only a JSON array of objectives, like:
+  ["Objective 1", "Objective 2", "Objective 3"]
+        `;
 
-  //   const { choices } = await openai.chat.completions.create({
-  //     model: "gpt-4",
-  //     messages: [{ role: "user", content: prompt }],
-  //   });
+      case OBJECTIVE_ENUMS.CONNECTION_TO_PRIOR_KNOWLEDGE:
+        return `
+  Generate 3–5 objectives that connect the topic "${topic}" with prior knowledge from topics: ${
+          previousTopic?.join(", ") || "N/A"
+        }.
+  ${instructions || ""}
+  Return only a JSON array.
+        `;
 
-  //   const objectivesArray = (choices[0].message?.content || "")
-  //     .split("\n")
-  //     .map((line) => line.trim())
-  //     .filter(Boolean);
+      case OBJECTIVE_ENUMS.PRIMARY_PRESENTATION_FORM:
+        return `
+  Generate ${
+    noOfExamples || 3
+  } examples of how the topic "${topic}" can be presented visually or interactively in a classroom.
+  ${instructions || ""}
+  Return only a JSON array.
+        `;
 
-  //   const objectiveDoc = new Objective({
-  //     topic,
-  //     grade,
-  //     instructions,
-  //     title,
-  //     moduleType,
-  //     subject,
-  //     objectives: objectivesArray,
-  //     session: crypto.randomUUID(),
+      case OBJECTIVE_ENUMS.EVIDENCE_BASED_STRATEGIES:
+        return `
+  Generate 3–5 evidence-based teaching strategies for teaching "${topic}" to grade "${grade}" students.
+  ${instructions || ""}
+  Return only a JSON array.
+        `;
 
-  //     //createdBy,
-  //   });
+      case OBJECTIVE_ENUMS.ZOOMING:
+        return `
+  Generate 3–5 zooming (deep dive) learning prompts to explore advanced aspects of "${topic}".
+  ${instructions || ""}
+  Return only a JSON array.
+        `;
 
-  //   await objectiveDoc.save();
+      case OBJECTIVE_ENUMS.POWER_POINT:
+        return `
+  Generate 5 slide titles and key points for a PowerPoint presentation about "${topic}".
+  ${instructions || ""}
+  Return only a JSON array.
+        `;
 
-  //   return objectiveDoc;
-  // }
-
+      default:
+        return `
+  Generate 3–5 objectives for "${topic}".
+  Return only a JSON array.
+        `;
+    }
+  }
+  generateModuleTitle(moduleType: OBJECTIVE_ENUMS, topic: string) {
+    switch (moduleType) {
+      case OBJECTIVE_ENUMS.LEARNING_OBJECTIVE:
+        return `Learning Objectives for ${topic}`;
+      case OBJECTIVE_ENUMS.CONNECTION_TO_PRIOR_KNOWLEDGE:
+        return `Connecting ${topic} to Prior Knowledge`;
+      case OBJECTIVE_ENUMS.PRIMARY_PRESENTATION_FORM:
+        return `Lesson Presentation Plan for ${topic}`;
+      case OBJECTIVE_ENUMS.EVIDENCE_BASED_STRATEGIES:
+        return `Evidence-Based Strategies for Teaching ${topic}`;
+      case OBJECTIVE_ENUMS.ZOOMING:
+        return `Conceptual Zooming: Understanding ${topic}`;
+      case OBJECTIVE_ENUMS.POWER_POINT:
+        return `PowerPoint Outline for ${topic}`;
+      default:
+        return `Teaching Resource for ${topic}`;
+    }
+  }
   async generateAndSaveObjectives(
     topic: string,
     grade: string,
     instructions?: string,
-    title?: string,
     subject?: string,
-    moduleType: OBJECTIVE_ENUMS = OBJECTIVE_ENUMS.LEARNING_OBJECTIVE
+    moduleType: OBJECTIVE_ENUMS = OBJECTIVE_ENUMS.LEARNING_OBJECTIVE,
+    previousTopic?: string[],
+    noOfExamples?: number
   ) {
-    const systemPrompt = this.baseSystemPrompt({ topic, grade, subject });
-    const taskPrompt = this.basePromptForTask(moduleType);
+    const systemPrompt = await this.baseSystemPrompt({ topic, grade, subject });
+    const taskPrompt = this.buildPrompt({
+      topic,
+      grade,
+      subject,
+      moduleType,
+      instructions,
+      previousTopic,
+      noOfExamples,
+    });
 
-    const userPrompt = `
-  ${systemPrompt}
-  ${instructions ? `Additional Instructions: ${instructions}\n` : ""}
-  ${taskPrompt}
-  `;
+    const title = this.generateModuleTitle(moduleType, topic);
+    const finalPrompt = `${systemPrompt}\n${taskPrompt}`;
 
     const { choices } = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
-        { role: "system", content: await systemPrompt },
-        { role: "user", content: userPrompt },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: finalPrompt },
       ],
     });
 
-    const objectivesArray = (choices[0].message?.content || "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
+    let objectivesArray: string[] = [];
+    const rawContent = choices[0].message?.content || "";
+
+    const rawJoined = Array.isArray(rawContent)
+      ? rawContent.join("\n")
+      : rawContent;
+
+    try {
+      const cleanedJson = rawJoined
+        .replace(/\n/g, "")
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]");
+
+      const parsed = JSON.parse(cleanedJson);
+
+      const flatten = (obj: any): string[] => {
+        if (typeof obj === "string") return [obj.trim()];
+        if (Array.isArray(obj)) return obj.flatMap(flatten);
+        if (typeof obj === "object") {
+          return Object.values(obj).flatMap(flatten);
+        }
+        return [];
+      };
+
+      objectivesArray = flatten(parsed);
+    } catch (err) {
+      objectivesArray = rawJoined
+        .split(/[\n\r]+|•|-/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+    objectivesArray = [...new Set(objectivesArray)].filter(Boolean);
+    console.log("Saving objective with data:", objectivesArray);
+    console.log(
+      "Data type:",
+      Array.isArray(objectivesArray),
+      typeof objectivesArray
+    );
 
     const objectiveDoc = new Objective({
       topic,
@@ -122,12 +201,13 @@ class ObjectiveService {
       title,
       subject,
       moduleType,
+      previousTopic,
+      noOfExamples,
       data: objectivesArray,
       session: crypto.randomUUID(),
     });
 
     await objectiveDoc.save();
-
     return objectiveDoc;
   }
 
@@ -139,76 +219,14 @@ class ObjectiveService {
     return Objective.findById(id);
   }
 
-  async getHistory(session?: string) {
-    const query: any = {};
-    if (session) query.session = session;
-    return Objective.findOne(query);
+  async getHistory(id: string) {
+    return Objective.findOne({ session: id });
   }
 
   async getTitle(moduleType?: string) {
     const query: any = {};
     if (moduleType) query.moduleType = moduleType;
-    // Only return the 'title' field
     return Objective.find(query, { title: 1, _id: 0, session: 1 });
-  }
-
-  async generateNextTopicAndSave(
-    grade: string,
-    subject: string,
-    previousTopics: string[],
-    title: string,
-    createdBy?: string
-  ) {
-    const currentTopic = previousTopics[previousTopics.length - 1] || "None";
-
-    // Prompt ONLY for the next topic
-    const topicPrompt = `
-    You are a teaching assistant. 
-    Grade: ${grade}
-    Subject: ${subject}
-    Previous topics covered: ${previousTopics.join(", ") || "None"}
-    Current topic: ${currentTopic}
-    
-    Suggest the NEXT topic that should logically follow in the teaching roadmap. 
-    Give only the topic title (no explanation).
-    `;
-
-    const topicCompletion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: topicPrompt }],
-    });
-
-    const nextTopic =
-      topicCompletion.choices[0].message?.content?.trim() ||
-      "Next topic unavailable";
-
-    // Prompt for learning objectives for the generated topic
-    const objectivePrompt = `Generate 2 learning objectives for grade ${grade} in subject "${subject}" on topic "${nextTopic}" using the ABCD model.`;
-
-    const objectiveCompletion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: objectivePrompt }],
-    });
-
-    const objectivesArray =
-      objectiveCompletion.choices[0].message?.content
-        ?.split("\n")
-        .filter((line) => line.trim() !== "") || [];
-
-    // Save document
-    const objectiveDoc = new Objective({
-      topic: nextTopic,
-      grade,
-      subject,
-      title,
-      previousTopics,
-      objectives: objectivesArray,
-      createdBy,
-    });
-
-    await objectiveDoc.save();
-
-    return objectiveDoc;
   }
 }
 

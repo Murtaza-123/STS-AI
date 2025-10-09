@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { OBJECTIVE_ENUMS } from "../constants/objective.constant";
 
 const objectiveSchema = new Schema(
   {
@@ -8,13 +9,16 @@ const objectiveSchema = new Schema(
     instructions: { type: String, required: false },
     subject: { type: String, required: false },
     title: { type: String, required: false },
-    data: [{ type: String, required: true }],
+
+    data: { type: [String], required: false },
+
+    previousTopic: [{ type: String }],
+    noOfExamples: { type: Number },
+
     moduleType: {
       type: String,
-      enum: Object.values(
-        require("../constants/objective.constant").OBJECTIVE_ENUMS
-      ),
-      required: false,
+      enum: Object.values(OBJECTIVE_ENUMS),
+      required: true,
     },
 
     createdBy: { type: String, required: false },
@@ -22,6 +26,6 @@ const objectiveSchema = new Schema(
   { timestamps: true }
 );
 
-const Objective = mongoose.model("objective", objectiveSchema);
+const Objective = mongoose.model("Objective", objectiveSchema);
 
 export default Objective;
